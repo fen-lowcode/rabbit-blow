@@ -4,7 +4,7 @@
     @author Mousymous
     
     Created By Mousymous at November 14 2024 - November 16 2024.
-    The whole code is hand written and developed so by mousymous so bugs and mistakes are visible.
+    The whole code is hand written and developed by mousymous so bugs and mistakes are visible.
     You can modify the program to make it even better.
 
     Issues: 
