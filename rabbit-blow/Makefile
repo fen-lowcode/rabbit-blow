@@ -1,9 +1,9 @@
 
 simple:
-	g++ rabbitBlow.cpp name.cpp -o rabit-flow.exe -std=c++20 -pedantic-errors
+	g++ rabbitBlow.cpp name.cpp -o rabbit-flow.exe -std=c++20 -pedantic-errors -lboost_system
 
 debug:
-	g++ rabbitBlow.cpp name.cpp -o rabbit-flow.exe -Wall -Werror -Weffc++ -Wextra -Wconversion -pedantic-errors -std=c++20 -O0 -g
+	g++ rabbitBlow.cpp name.cpp -o rabbit-flow.exe -Wall -Weffc++ -Wextra -Wconversion -pedantic-errors -std=c++20 -O0 -g -lboost_system
 
 optimize:
-	g++ rabbitBlow.cpp name.cpp -o rabbit-flow.exe -Wall -Werror -Weffc++ -Wextra -Wconversion -pedantic-errors -std=c++20 -O3
+	g++ rabbitBlow.cpp name.cpp -o rabbit-flow.exe -Wall -Weffc++ -Wextra -Wconversion -pedantic-errors -std=c++20 -O3 -lboost_system

