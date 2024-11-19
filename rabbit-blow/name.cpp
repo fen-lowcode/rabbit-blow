@@ -20,7 +20,7 @@
 // "                          ░          ░                                               \n"
 // "                                                                                     \n";
 
-std::string toolName = 
+std::string rabbitBlowLogo = 
 
 COLOR"                                                                              \n"                                                  
 COLOR"                           ---::.        ..                                   \n"           
