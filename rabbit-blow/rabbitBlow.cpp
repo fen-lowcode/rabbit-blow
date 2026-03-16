@@ -60,6 +60,7 @@
 
 */
 
+#include <boost/asio/ip/address.hpp>
 #include <iostream>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -147,7 +148,7 @@ class GetUserInput {
 
                     try {
         
-                        boost::asio::ip::address::from_string(storedInput.inputipAddress);
+                        boost::asio::ip::make_address(storedInput.inputipAddress);
 
                     } catch (boost::system::system_error&) {
 
